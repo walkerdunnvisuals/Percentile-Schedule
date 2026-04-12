@@ -2,84 +2,37 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Contingency Calculator</title>
+  <title>Percentile-Threshold Schedule</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       margin: 0;
       background: #f5f5f5;
+      color: #222;
     }
+
     header {
       background: #222;
       color: #fff;
       padding: 1rem;
       text-align: center;
     }
+
     .container {
       max-width: 1000px;
       margin: 1rem auto;
-      padding: 0 1rem;
+      padding: 0 1rem 2rem;
     }
-    .menu-btn {
-      display: block;
-      width: 100%;
-      margin: 0.5rem 0;
-      padding: 0.75rem 1rem;
-      border: none;
-      border-radius: 8px;
-      background: #2979ff;
-      color: #fff;
-      font-size: 1rem;
-      cursor: pointer;
-    }
+
     .section {
       background: #fff;
       padding: 1rem;
-      border-radius: 8px;
+      border-radius: 10px;
       box-shadow: 0 1px 4px rgba(0,0,0,.1);
-      margin-bottom: 1.5rem;
+      margin-bottom: 1rem;
     }
-    input[type="number"], input[type="text"] {
-      width: 100%;
-      padding: 0.5rem;
-      margin: 0.25rem 0 0.75rem 0;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      font-size: 1rem;
-      box-sizing: border-box;
-    }
-    button {
-      cursor: pointer;
-    }
-    .row {
-      display: flex;
-      gap: 1rem;
-      flex-wrap: wrap;
-    }
-    .grid {
-      display: grid;
-      gap: 0.75rem;
-    }
-    .block {
-      background: #2979ff;
-      color: #fff;
-      padding: 1.25rem 0.5rem;
-      text-align: center;
-      border-radius: 8px;
-      user-select: none;
-    }
-    .tracker-box {
-      background: #f0f0f0;
-      padding: 0.5rem;
-      border-radius: 6px;
-      max-height: 250px;
-      overflow-y: auto;
-      font-size: 0.8rem;
-    }
-    .hidden {
-      display: none;
-    }
+
     .flex-between {
       display: flex;
       justify-content: space-between;
@@ -87,14 +40,107 @@
       gap: 1rem;
       flex-wrap: wrap;
     }
-    .small-btn {
-      padding: 0.3rem 0.6rem;
-      font-size: 0.75rem;
+
+    .menu-btn,
+    .small-btn,
+    .response-btn {
       border: none;
-      border-radius: 6px;
-      background: #666;
-      color: white;
+      border-radius: 8px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 1rem;
     }
+
+    .menu-btn {
+      display: block;
+      width: 100%;
+      margin: 0.5rem 0;
+      padding: 0.75rem 1rem;
+      background: #2979ff;
+    }
+
+    .small-btn {
+      padding: 0.45rem 0.75rem;
+      font-size: 0.85rem;
+      background: #666;
+    }
+
+    .small-btn.danger {
+      background: #f44336;
+    }
+
+    .small-btn.success {
+      background: #4caf50;
+    }
+
+    input[type="text"],
+    input[type="number"] {
+      width: 100%;
+      padding: 0.55rem;
+      margin: 0.25rem 0 0.75rem 0;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
+
+    .inline-input {
+      width: 160px !important;
+      margin: 0 !important;
+    }
+
+    .tracker-box {
+      background: #f0f0f0;
+      padding: 0.75rem;
+      border-radius: 8px;
+      max-height: 320px;
+      overflow-y: auto;
+      font-size: 0.85rem;
+      line-height: 1.35;
+      white-space: pre-wrap;
+    }
+
+    .response-card {
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 0.85rem;
+      margin-bottom: 0.85rem;
+      background: #fafafa;
+    }
+
+    .response-btn {
+      width: 100%;
+      padding: 1rem;
+      background: #2979ff;
+      font-weight: 600;
+      margin-top: 0.5rem;
+    }
+
+    .manual-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 0.6rem;
+    }
+
+    .stat-box {
+      background: #f7f7f7;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 0.85rem;
+      margin-top: 0.75rem;
+    }
+
+    .chip {
+      display: inline-block;
+      padding: 0.3rem 0.6rem;
+      margin: 0.2rem;
+      border-radius: 999px;
+      background: #e3f2fd;
+      font-size: 0.85rem;
+    }
+
     #reinforce-overlay {
       position: fixed;
       inset: 0;
@@ -104,6 +150,7 @@
       justify-content: center;
       z-index: 9999;
     }
+
     #reinforce-modal {
       background: #fff;
       padding: 2rem 2.5rem;
@@ -112,532 +159,94 @@
       min-width: 260px;
       box-shadow: 0 8px 24px rgba(0,0,0,0.25);
     }
+
     #reinforce-modal h2 {
       margin-top: 0;
       color: #075e16;
     }
-    .pct-response-card {
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      padding: 0.75rem;
-      margin-bottom: 0.75rem;
-      background: #fafafa;
-    }
-    .pct-response-btn {
-      width: 100%;
-      padding: 1rem;
-      border: none;
-      border-radius: 8px;
-      background: #2979ff;
-      color: #fff;
-      font-size: 1rem;
-      font-weight: 600;
-      margin-top: 0.5rem;
-    }
-    .pct-manual-row {
-      display: flex;
-      gap: 0.5rem;
-      align-items: center;
-      margin-top: 0.5rem;
-      flex-wrap: wrap;
-    }
-    .pct-stat-box {
-      background: #f7f7f7;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      padding: 0.75rem;
-      margin-top: 1rem;
-    }
-    .pct-chip {
-      display: inline-block;
-      padding: 0.25rem 0.5rem;
-      margin: 0.2rem;
-      border-radius: 999px;
-      background: #e3f2fd;
-      font-size: 0.8rem;
-    }
-    .pct-inline-input {
-      width: 120px !important;
-      margin: 0 !important;
+
+    .muted {
+      color: #666;
+      font-size: 0.9rem;
     }
   </style>
 </head>
 <body>
   <header>
-    <h1>Contingency Calculator</h1>
+    <h1>Percentile-Threshold Schedule</h1>
   </header>
 
-  <div id="reinforce-overlay" class="hidden">
+  <div id="reinforce-overlay">
     <div id="reinforce-modal">
       <h2>REINFORCE</h2>
-      <p>Reinforcement delivered.</p>
+      <p>Reinforcement available.</p>
       <button onclick="hideReinforceOverlay()" class="menu-btn" style="background:#f44336;">X</button>
     </div>
   </div>
 
-  <div class="container" id="app">
-
-    <div id="main-menu" class="section">
-      <h2>Main Menu</h2>
-      <button class="menu-btn" onclick="showView('variable-view')">Variable Schedule</button>
-      <button class="menu-btn" onclick="showView('lag-view')">Lag Schedule</button>
-      <button class="menu-btn" onclick="showView('percentile-view')">Percentile-Threshold Schedule</button>
-      <button class="menu-btn" onclick="showView('frequency-view')">Frequency-based Schedule</button>
-    </div>
-
-    <div id="variable-view" class="section hidden">
+  <div class="container">
+    <div class="section">
       <div class="flex-between">
-        <h2>Variable Schedule</h2>
-        <button onclick="showView('main-menu')" class="small-btn">Main Menu</button>
-      </div>
-      <label>Variable Schedule (target avg):</label>
-      <input type="number" id="var-target" min="1" />
-      <label>Reinforcement opportunities (n):</label>
-      <input type="number" id="var-n" min="1" />
-      <button onclick="variableVM.updateSet()" class="menu-btn">Enter</button>
-      <p id="var-error" style="color:red;"></p>
-      <div id="var-current"></div>
-      <div class="row" style="margin-top:1rem;">
-        <button onclick="variableVM.handleCheckClick()" class="menu-btn" style="background:#4caf50;">✔</button>
-        <button onclick="variableVM.handleXClick()" class="menu-btn" style="background:#f44336;">X</button>
-      </div>
-      <button onclick="toggleSection('var-tracker')" class="menu-btn" style="background:#777;margin-top:1rem;">Click Tracker</button>
-      <div id="var-tracker" class="tracker-box hidden"></div>
-      <button onclick="variableVM.copyClickData()" class="menu-btn" style="background:#2196f3;">Copy Click Tracker</button>
-      <p id="var-copied" style="color:green;display:none;">Copied!</p>
-    </div>
-
-    <div id="lag-view" class="section hidden">
-      <div class="flex-between">
-        <h2>Lag Blocks</h2>
-        <button onclick="showView('main-menu')" class="small-btn">Main Menu</button>
-      </div>
-
-      <div class="flex-between">
-        <div style="flex:1;">
-          <label>Block Count (1-50):</label>
-          <input type="number" id="lag-block-count" min="1" max="50" value="4" />
-          <button onclick="lagVM.setBlockCount()" class="small-btn">Set</button>
-        </div>
-        <div style="flex:1;">
-          <label>Lag Schedule Input:</label>
-          <input type="number" id="lag-input" min="1" value="3" />
-          <button onclick="lagVM.setLag()" class="small-btn">Set</button>
-        </div>
-      </div>
-
-      <div id="lag-blocks" class="grid" style="margin-top:1rem;"></div>
-
-      <div style="margin-top:1rem;">
-        <button onclick="toggleSection('lag-tracker')" class="menu-btn" style="background:#777;">Toggle Click Tracker</button>
-      </div>
-      <div id="lag-tracker" class="tracker-box hidden"></div>
-      <button onclick="lagVM.copyClickData()" class="menu-btn" style="background:#2196f3;margin-top:0.5rem;">Copy Click Tracker</button>
-
-      <div style="margin-top:1rem;">
-        <button onclick="lagVM.saveSession()" class="small-btn">Save Session</button>
-        <button onclick="lagVM.showLoad()" class="small-btn">Load Session</button>
-        <button onclick="lagVM.undo()" class="small-btn" style="background:#e57373;">Undo</button>
-        <button onclick="lagVM.redo()" class="small-btn" style="background:#81c784;">Redo</button>
-      </div>
-      <div id="lag-load-list" class="tracker-box hidden"></div>
-    </div>
-
-    <div id="percentile-view" class="section hidden">
-      <div class="flex-between">
-        <h2>Percentile-Threshold Schedule</h2>
-        <button onclick="showView('main-menu')" class="small-btn">Main Menu</button>
-      </div>
-
-      <div class="pct-stat-box">
-        <div class="flex-between">
+        <h2 style="margin:0;">Response Class Setup</h2>
+        <div class="flex-between" style="gap:0.5rem;">
           <button onclick="percentileVM.addResponse()" class="small-btn" style="background:#2979ff;">Add Response</button>
-          <button onclick="percentileVM.resetCounts()" class="small-btn" style="background:#f44336;">Reset Counts</button>
+          <button onclick="percentileVM.resetCounts()" class="small-btn danger">Reset Counts</button>
+          <button onclick="percentileVM.clearTracker()" class="small-btn">Clear Tracker</button>
         </div>
+      </div>
 
-        <div class="pct-manual-row" style="margin-top:0.75rem;">
-          <label>Median Window (optional):</label>
-          <input
-            type="number"
-            id="pct-window"
-            class="pct-inline-input"
-            min="1"
-            placeholder="blank = all"
-            onchange="percentileVM.setWindow(this.value)"
-          />
+      <div class="manual-row" style="margin-top:0.9rem;">
+        <label for="pct-target-threshold"><strong>Target Threshold (optional):</strong></label>
+        <input
+          type="number"
+          id="pct-target-threshold"
+          class="inline-input"
+          placeholder="optional"
+          onchange="percentileVM.setTargetThreshold(this.value)"
+        />
+      </div>
 
-          <label>Target Threshold:</label>
-          <input
-            type="number"
-            id="pct-target-threshold"
-            class="pct-inline-input"
-            placeholder="optional"
-            onchange="percentileVM.setTargetThreshold(this.value)"
-          />
-        </div>
-
-        <div style="margin-top:0.75rem;">
-          <div><strong>Current Median:</strong> <span id="pct-median">N/A</span></div>
-          <div><strong>Active Threshold:</strong> <span id="pct-active-threshold">N/A</span></div>
-        </div>
-
+      <div class="stat-box">
+        <div><strong>Current Median:</strong> <span id="pct-median">N/A</span></div>
+        <div style="margin-top:0.35rem;"><strong>Active Threshold:</strong> <span id="pct-active-threshold">N/A</span></div>
         <div style="margin-top:0.75rem;">
           <strong>Current Counts:</strong>
           <div id="pct-count-summary" style="margin-top:0.4rem;"></div>
         </div>
+        <div class="muted" style="margin-top:0.75rem;">
+          Reinforcement occurs when a response topography goes from at or below the active threshold to above it.
+        </div>
       </div>
-
-      <div style="margin-top:1rem;">
-        <h3>Response Options</h3>
-        <div id="pct-list"></div>
-      </div>
-
-      <button onclick="toggleSection('pct-log')" class="menu-btn" style="background:#777;margin-top:1rem;">Show/Hide Tracker</button>
-      <div id="pct-log" class="tracker-box hidden"></div>
-      <button onclick="percentileVM.copyClickData()" class="menu-btn" style="background:#2196f3;margin-top:0.5rem;">Copy Click Tracker</button>
     </div>
 
-    <div id="frequency-view" class="section hidden">
+    <div class="section">
+      <h2 style="margin-top:0;">Response Options</h2>
+      <div id="pct-list"></div>
+    </div>
+
+    <div class="section">
       <div class="flex-between">
-        <h2>Frequency-based Schedule</h2>
-        <button onclick="showView('main-menu')" class="small-btn">Main Menu</button>
+        <h2 style="margin:0;">Click Tracker</h2>
+        <button onclick="percentileVM.copyClickData()" class="small-btn success">Copy Click Tracker</button>
       </div>
-      <div>
-        <label>Frequency Threshold (%):</label>
-        <input type="number" id="freq-threshold" value="50" min="1" max="100" onchange="frequencyVM.setThreshold(this.value)" />
-      </div>
-
-      <div id="freq-buttons" style="margin-top:1rem;"></div>
-
-      <div style="margin-top:1rem;">
-        <h3>Edit Buttons</h3>
-        <div id="freq-editor"></div>
-        <button onclick="frequencyVM.addButton()" class="small-btn" style="margin-top:0.5rem;">Add Button</button>
-      </div>
-
-      <button onclick="toggleSection('freq-log')" class="menu-btn" style="background:#777;margin-top:1rem;">Show Click Tracker</button>
-      <div id="freq-log" class="tracker-box hidden"></div>
-      <button onclick="frequencyVM.copyClickData()" class="menu-btn" style="background:#2196f3;margin-top:0.5rem;">Copy Click Tracker</button>
+      <div id="pct-log" class="tracker-box" style="margin-top:0.75rem;"></div>
     </div>
-
   </div>
 
   <script>
-    window.addEventListener("load", () => {
-      const ov = document.getElementById("reinforce-overlay");
-      if (ov) ov.classList.add("hidden");
-    });
-
     function showReinforceOverlay() {
       const ov = document.getElementById("reinforce-overlay");
-      ov.classList.remove("hidden");
       ov.style.display = "flex";
     }
+
     function hideReinforceOverlay() {
       const ov = document.getElementById("reinforce-overlay");
-      ov.classList.add("hidden");
       ov.style.display = "none";
     }
-
-    function showView(id) {
-      const sections = ["main-menu", "variable-view", "lag-view", "percentile-view", "frequency-view"];
-      sections.forEach(sec => {
-        document.getElementById(sec).classList.add("hidden");
-      });
-      document.getElementById(id).classList.remove("hidden");
-    }
-
-    function toggleSection(id) {
-      const el = document.getElementById(id);
-      el.classList.toggle("hidden");
-    }
-
-    const variableVM = {
-      n: 0,
-      targetAvg: 0,
-      currentSet: [],
-      generatedSets: new Set(),
-      repeatingSets: false,
-      clickCount: 0,
-      currentIndex: 0,
-      clickData: [],
-
-      updateSet() {
-        const nVal = parseInt(document.getElementById("var-n").value, 10);
-        const tVal = parseInt(document.getElementById("var-target").value, 10);
-        const errorEl = document.getElementById("var-error");
-        if (!nVal || !tVal || nVal <= 0 || tVal <= 0) {
-          errorEl.textContent = "Please enter positive values for both fields.";
-          return;
-        }
-        this.n = nVal;
-        this.targetAvg = tVal;
-        const target = this.n * this.targetAvg;
-        const combo = this.findRandomCombination(this.n, target);
-        if (combo) {
-          errorEl.textContent = "";
-          this.currentSet = combo;
-          this.clickCount = 0;
-          this.currentIndex = 0;
-          this.log("New schedule generated");
-          this.renderCurrentSet();
-        } else {
-          this.repeatingSets = true;
-        }
-      },
-      findRandomCombination(n, target) {
-        for (let i = 0; i < 1000; i++) {
-          const combination = [];
-          let sum = 0;
-          while (combination.length < n - 1) {
-            const remaining = n - combination.length;
-            const maxPossible = Math.max(1, Math.floor((target - sum) / remaining));
-            const randomValue = Math.floor(Math.random() * maxPossible) + 1;
-            combination.push(randomValue);
-            sum += randomValue;
-          }
-          combination.push(target - sum);
-          combination.sort(() => Math.random() - 0.5);
-          const key = [...combination].sort((a,b)=>a-b).join("-");
-          if (this.repeatingSets || !this.generatedSets.has(key)) {
-            this.generatedSets.add(key);
-            return combination;
-          }
-        }
-        return null;
-      },
-      handleCheckClick() {
-        if (!this.currentSet.length) return;
-        this.clickCount += 1;
-        this.log("Check");
-        if (this.clickCount >= this.currentSet[this.currentIndex]) {
-          showReinforceOverlay();
-          this.log("REINFORCE");
-          this.clickCount = 0;
-          this.currentIndex += 1;
-          if (this.currentIndex >= this.currentSet.length) this.currentIndex = 0;
-          this.renderCurrentSet();
-        }
-      },
-      handleXClick() {
-        this.log("X");
-      },
-      log(text) {
-        this.clickData.push(text + " at " + new Date().toISOString());
-        this.renderTracker();
-      },
-      renderCurrentSet() {
-        const el = document.getElementById("var-current");
-        if (!this.currentSet.length) {
-          el.innerHTML = "";
-          return;
-        }
-        const parts = this.currentSet.map((val, i) => i === this.currentIndex ? `<strong>${val}</strong>` : String(val));
-        el.innerHTML = `<h3>Reinforce after:</h3><p>${parts.join(", ")} responses</p>`;
-      },
-      renderTracker() {
-        const el = document.getElementById("var-tracker");
-        el.innerHTML = this.clickData.map(d => `<div>${d}</div>`).join("");
-      },
-      copyClickData() {
-        const text = this.clickData.join("\n");
-        navigator.clipboard.writeText(text).then(() => {
-          const msg = document.getElementById("var-copied");
-          msg.style.display = "block";
-          setTimeout(() => msg.style.display = "none", 2000);
-        });
-      }
-    };
-
-    const lagVM = {
-      blocks: [],
-      clickTracker: [],
-      blockCount: 4,
-      lagScheduleInput: 3,
-      recentClicks: [],
-      undoStack: [],
-      redoStack: [],
-
-      init() {
-        this.makeBlocks();
-        this.renderBlocks();
-      },
-      makeBlocks() {
-        this.blocks = Array.from({length: this.blockCount}, (_,i) => ({
-          id: crypto.randomUUID(),
-          name: "Block " + (i+1)
-        }));
-      },
-      setBlockCount() {
-        const val = parseInt(document.getElementById("lag-block-count").value,10);
-        if (val >=1 && val <=50) {
-          this.saveState();
-          this.blockCount = val;
-          this.makeBlocks();
-          this.log(`Block count changed to ${val}`);
-          this.renderBlocks();
-        }
-      },
-      setLag() {
-        const val = parseInt(document.getElementById("lag-input").value,10);
-        if (val > 0) {
-          this.saveState();
-          this.lagScheduleInput = val;
-          this.log(`Lag schedule changed to ${val}`);
-        }
-      },
-      renderBlocks() {
-        const container = document.getElementById("lag-blocks");
-        const cols = Math.round(Math.sqrt(this.blockCount));
-        container.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
-        container.innerHTML = "";
-        this.blocks.forEach(block => {
-          const div = document.createElement("div");
-          div.className = "block";
-          div.textContent = block.name;
-          div.onclick = () => this.blockClicked(block);
-          div.ondblclick = (e) => {
-            e.stopPropagation();
-            const newName = prompt("Enter new block name:", block.name);
-            if (newName && newName.trim() !== "") {
-              this.renameBlock(block.id, newName.trim());
-            }
-          };
-          container.appendChild(div);
-        });
-        this.renderTracker();
-      },
-      renameBlock(id, newName) {
-        const idx = this.blocks.findIndex(b => b.id === id);
-        if (idx !== -1) {
-          this.saveState();
-          this.blocks[idx].name = newName;
-          this.renderBlocks();
-          this.log(`Block renamed to ${newName}`);
-        }
-      },
-      blockClicked(block) {
-        this.saveState();
-        this.recentClicks.push(block);
-        if (this.recentClicks.length > this.lagScheduleInput + 1) {
-          this.recentClicks.shift();
-        }
-        if (this.recentClicks.length === this.lagScheduleInput + 1) {
-          const lagWindow = this.recentClicks.slice(0, this.lagScheduleInput);
-          const invariant = lagWindow.some(b => b.id === block.id);
-          if (invariant) {
-            this.log("[INVARIANT]");
-            this.renderTracker();
-          } else {
-            showReinforceOverlay();
-            this.log(`Reinforced ${block.name} at ${new Date().toISOString()}`);
-            this.log(`[*NEW LAG WINDOW] ${this.recentClicks.slice(-this.lagScheduleInput).map(b=>b.name).join(", ")}`);
-            this.renderTracker();
-          }
-        } else {
-          this.log(`${block.name} clicked at ${new Date().toISOString()}`);
-          this.renderTracker();
-        }
-      },
-      log(text) {
-        this.clickTracker.push(text);
-      },
-      renderTracker() {
-        const el = document.getElementById("lag-tracker");
-        el.innerHTML = this.clickTracker.map(t => `<div>${t}</div>`).join("");
-      },
-      copyClickData() {
-        const text = this.clickTracker.join("\n");
-        navigator.clipboard.writeText(text);
-      },
-      saveSession() {
-        const sessionData = {
-          clickTracker: this.clickTracker,
-          blocks: this.blocks,
-          blockCount: this.blockCount,
-          lagScheduleInput: this.lagScheduleInput
-        };
-        const name = "lagblocks_session_" + crypto.randomUUID();
-        localStorage.setItem(name, JSON.stringify(sessionData));
-        alert("Session saved.");
-      },
-      showLoad() {
-        const list = document.getElementById("lag-load-list");
-        list.classList.toggle("hidden");
-        if (!list.classList.contains("hidden")) {
-          list.innerHTML = "";
-          Object.keys(localStorage)
-            .filter(k => k.startsWith("lagblocks_session_"))
-            .forEach(k => {
-              const btn = document.createElement("button");
-              btn.textContent = k.replace("lagblocks_session_","");
-              btn.className = "small-btn";
-              btn.onclick = () => this.loadSession(k);
-              list.appendChild(btn);
-              list.appendChild(document.createElement("br"));
-            });
-        }
-      },
-      loadSession(key) {
-        const data = localStorage.getItem(key);
-        if (!data) return;
-        const session = JSON.parse(data);
-        this.clickTracker = session.clickTracker;
-        this.blocks = session.blocks;
-        this.blockCount = session.blockCount;
-        this.lagScheduleInput = session.lagScheduleInput;
-        document.getElementById("lag-block-count").value = this.blockCount;
-        document.getElementById("lag-input").value = this.lagScheduleInput;
-        this.renderBlocks();
-        this.renderTracker();
-        alert("Session loaded.");
-      },
-      saveState() {
-        const copy = {
-          clickTracker: [...this.clickTracker],
-          blocks: JSON.parse(JSON.stringify(this.blocks)),
-          blockCount: this.blockCount,
-          lagScheduleInput: this.lagScheduleInput
-        };
-        this.undoStack.push(copy);
-        this.redoStack = [];
-      },
-      undo() {
-        const prev = this.undoStack.pop();
-        if (!prev) return;
-        const current = {
-          clickTracker: [...this.clickTracker],
-          blocks: JSON.parse(JSON.stringify(this.blocks)),
-          blockCount: this.blockCount,
-          lagScheduleInput: this.lagScheduleInput
-        };
-        this.redoStack.push(current);
-        this.clickTracker = prev.clickTracker;
-        this.blocks = prev.blocks;
-        this.blockCount = prev.blockCount;
-        this.lagScheduleInput = prev.lagScheduleInput;
-        document.getElementById("lag-block-count").value = this.blockCount;
-        document.getElementById("lag-input").value = this.lagScheduleInput;
-        this.renderBlocks();
-      },
-      redo() {
-        const next = this.redoStack.pop();
-        if (!next) return;
-        this.saveState();
-        this.clickTracker = next.clickTracker;
-        this.blocks = next.blocks;
-        this.blockCount = next.blockCount;
-        this.lagScheduleInput = next.lagScheduleInput;
-        document.getElementById("lag-block-count").value = this.blockCount;
-        document.getElementById("lag-input").value = this.lagScheduleInput;
-        this.renderBlocks();
-      }
-    };
 
     const percentileVM = {
       responses: [],
       eventLog: [],
-      medianWindow: null,
       targetThreshold: null,
 
       addResponse() {
@@ -647,13 +256,16 @@
           name: "New Response",
           count: 0
         });
+        this.log(`Added response at ${new Date().toISOString()}`);
         this.renderResponses();
         this.renderSummary();
+        this.renderLog();
       },
 
       removeResponse(id) {
+        const item = this.responses.find(r => r.id === id);
         this.responses = this.responses.filter(r => r.id !== id);
-        this.log(`Removed response at ${new Date().toISOString()}`);
+        this.log(`Removed "${item ? item.name : "response"}" at ${new Date().toISOString()}`);
         this.renderResponses();
         this.renderSummary();
         this.renderLog();
@@ -663,19 +275,9 @@
         const item = this.responses.find(r => r.id === id);
         if (item) {
           item.name = value.trim() || "Unnamed Response";
+          this.renderResponses();
           this.renderSummary();
         }
-      },
-
-      setWindow(value) {
-        const trimmed = String(value).trim();
-        if (trimmed === "") {
-          this.medianWindow = null;
-        } else {
-          const num = parseInt(trimmed, 10);
-          this.medianWindow = (!isNaN(num) && num > 0) ? num : null;
-        }
-        this.renderSummary();
       },
 
       setTargetThreshold(value) {
@@ -689,13 +291,6 @@
         this.renderSummary();
       },
 
-      getCountsForMedian() {
-        const counts = this.responses.map(r => r.count);
-        if (counts.length === 0) return [];
-        if (!this.medianWindow) return counts;
-        return counts.slice(-this.medianWindow);
-      },
-
       calculateMedian(values) {
         if (!values.length) return null;
         const sorted = [...values].sort((a, b) => a - b);
@@ -706,7 +301,8 @@
       },
 
       getLiveMedian() {
-        return this.calculateMedian(this.getCountsForMedian());
+        const counts = this.responses.map(r => r.count);
+        return this.calculateMedian(counts);
       },
 
       getActiveThreshold() {
@@ -717,26 +313,26 @@
         return Math.max(median, this.targetThreshold);
       },
 
+      shouldReinforce(beforeCount, afterCount, threshold) {
+        if (threshold === null) return false;
+        return (beforeCount <= threshold) && (afterCount > threshold);
+      },
+
       clickResponse(id) {
         const item = this.responses.find(r => r.id === id);
         if (!item) return;
 
         const beforeMedian = this.getLiveMedian();
-        const beforeActiveThreshold = this.getActiveThreshold();
+        const beforeThreshold = this.getActiveThreshold();
         const beforeCount = item.count;
-
-        let reinforce = false;
-
-        if (beforeActiveThreshold !== null) {
-          reinforce = beforeCount <= beforeActiveThreshold;
-        } else {
-          reinforce = true;
-        }
 
         item.count += 1;
 
         const afterMedian = this.getLiveMedian();
-        const afterActiveThreshold = this.getActiveThreshold();
+        const afterThreshold = this.getActiveThreshold();
+        const afterCount = item.count;
+
+        const reinforce = this.shouldReinforce(beforeCount, afterCount, beforeThreshold);
 
         if (reinforce) {
           showReinforceOverlay();
@@ -744,9 +340,9 @@
 
         this.log(
           `[${new Date().toISOString()}] Clicked "${item.name}" | ` +
-          `before count: ${beforeCount} | after count: ${item.count} | ` +
+          `before count: ${beforeCount} | after count: ${afterCount} | ` +
           `median before: ${beforeMedian ?? "N/A"} | median after: ${afterMedian ?? "N/A"} | ` +
-          `active threshold before: ${beforeActiveThreshold ?? "N/A"} | active threshold after: ${afterActiveThreshold ?? "N/A"} | ` +
+          `active threshold before: ${beforeThreshold ?? "N/A"} | active threshold after: ${afterThreshold ?? "N/A"} | ` +
           `${reinforce ? "REINFORCE" : "No reinforcement"}`
         );
 
@@ -764,21 +360,17 @@
         if (isNaN(val) || val <= 0) return;
 
         const beforeMedian = this.getLiveMedian();
-        const beforeActiveThreshold = this.getActiveThreshold();
+        const beforeThreshold = this.getActiveThreshold();
         const beforeCount = item.count;
-
-        let reinforce = false;
-        if (beforeActiveThreshold !== null) {
-          reinforce = beforeCount <= beforeActiveThreshold;
-        } else {
-          reinforce = true;
-        }
 
         item.count += val;
         input.value = "";
 
         const afterMedian = this.getLiveMedian();
-        const afterActiveThreshold = this.getActiveThreshold();
+        const afterThreshold = this.getActiveThreshold();
+        const afterCount = item.count;
+
+        const reinforce = this.shouldReinforce(beforeCount, afterCount, beforeThreshold);
 
         if (reinforce) {
           showReinforceOverlay();
@@ -786,9 +378,9 @@
 
         this.log(
           `[${new Date().toISOString()}] Manual add ${val} to "${item.name}" | ` +
-          `before count: ${beforeCount} | after count: ${item.count} | ` +
+          `before count: ${beforeCount} | after count: ${afterCount} | ` +
           `median before: ${beforeMedian ?? "N/A"} | median after: ${afterMedian ?? "N/A"} | ` +
-          `active threshold before: ${beforeActiveThreshold ?? "N/A"} | active threshold after: ${afterActiveThreshold ?? "N/A"} | ` +
+          `active threshold before: ${beforeThreshold ?? "N/A"} | active threshold after: ${afterThreshold ?? "N/A"} | ` +
           `${reinforce ? "REINFORCE" : "No reinforcement"}`
         );
 
@@ -798,10 +390,17 @@
       },
 
       resetCounts() {
-        this.responses.forEach(r => r.count = 0);
+        this.responses.forEach(r => {
+          r.count = 0;
+        });
         this.log(`Counts reset at ${new Date().toISOString()}`);
         this.renderResponses();
         this.renderSummary();
+        this.renderLog();
+      },
+
+      clearTracker() {
+        this.eventLog = [];
         this.renderLog();
       },
 
@@ -811,7 +410,7 @@
 
         this.responses.forEach(r => {
           const div = document.createElement("div");
-          div.className = "pct-response-card";
+          div.className = "response-card";
           div.innerHTML = `
             <div class="flex-between">
               <input
@@ -820,18 +419,18 @@
                 onchange="percentileVM.renameResponse('${r.id}', this.value)"
                 style="flex:1;"
               />
-              <button class="small-btn" style="background:#f44336;" onclick="percentileVM.removeResponse('${r.id}')">Remove</button>
+              <button class="small-btn danger" onclick="percentileVM.removeResponse('${r.id}')">Remove</button>
             </div>
 
             <div style="margin-top:0.5rem;"><strong>Count:</strong> ${r.count}</div>
 
-            <button class="pct-response-btn" onclick="percentileVM.clickResponse('${r.id}')">
+            <button class="response-btn" onclick="percentileVM.clickResponse('${r.id}')">
               ${r.name} (+1)
             </button>
 
-            <div class="pct-manual-row">
-              <input id="pct-manual-${r.id}" type="number" min="1" placeholder="Manual add" class="pct-inline-input" />
-              <button class="small-btn" style="background:#4caf50;" onclick="percentileVM.manualAdd('${r.id}')">Add Input</button>
+            <div class="manual-row">
+              <input id="pct-manual-${r.id}" type="number" min="1" placeholder="Manual add" class="inline-input" />
+              <button class="small-btn success" onclick="percentileVM.manualAdd('${r.id}')">Add Input</button>
             </div>
           `;
           list.appendChild(div);
@@ -843,19 +442,19 @@
         const activeThreshold = this.getActiveThreshold();
 
         document.getElementById("pct-median").textContent =
-          median == null ? "N/A" : Number.isInteger(median) ? median : median.toFixed(2);
+          median == null ? "N/A" : (Number.isInteger(median) ? median : median.toFixed(2));
 
         document.getElementById("pct-active-threshold").textContent =
-          activeThreshold == null ? "N/A" : Number.isInteger(activeThreshold) ? activeThreshold : activeThreshold.toFixed(2);
+          activeThreshold == null ? "N/A" : (Number.isInteger(activeThreshold) ? activeThreshold : activeThreshold.toFixed(2));
 
         const summary = document.getElementById("pct-count-summary");
         if (!this.responses.length) {
-          summary.innerHTML = `<span class="pct-chip">No responses added yet</span>`;
+          summary.innerHTML = `<span class="chip">No responses added yet</span>`;
           return;
         }
 
         summary.innerHTML = this.responses
-          .map(r => `<span class="pct-chip">${r.name}: ${r.count}</span>`)
+          .map(r => `<span class="chip">${r.name}: ${r.count}</span>`)
           .join("");
       },
 
@@ -865,7 +464,9 @@
 
       renderLog() {
         const el = document.getElementById("pct-log");
-        el.innerHTML = this.eventLog.map(e => `<div>${e}</div>`).join("");
+        el.textContent = this.eventLog.length
+          ? this.eventLog.join("\n")
+          : "No entries yet.";
       },
 
       copyClickData() {
@@ -873,102 +474,9 @@
       }
     };
 
-    const frequencyVM = {
-      buttonNames: ["Behavior 1", "Behavior 2"],
-      buttonClicks: [0, 0],
-      frequencyThreshold: 50,
-      trackerLog: [],
-
-      init() {
-        this.renderButtons();
-        this.renderEditor();
-      },
-      setThreshold(val) {
-        const num = parseInt(val, 10);
-        if (!isNaN(num)) {
-          this.frequencyThreshold = num;
-          this.log(`Frequency threshold changed to ${num}%.`);
-          this.renderLog();
-        }
-      },
-      renderButtons() {
-        const container = document.getElementById("freq-buttons");
-        container.innerHTML = "";
-        this.buttonNames.forEach((name, index) => {
-          const btn = document.createElement("button");
-          btn.textContent = name;
-          btn.className = "menu-btn";
-          btn.onclick = () => this.handleClick(index);
-          container.appendChild(btn);
-        });
-      },
-      renderEditor() {
-        const editor = document.getElementById("freq-editor");
-        editor.innerHTML = "";
-        this.buttonNames.forEach((name, index) => {
-          const row = document.createElement("div");
-          row.className = "flex-between";
-          row.style.marginBottom = "0.4rem";
-          row.innerHTML = `
-            <input type="text" value="${name}" style="flex:1;margin-right:0.5rem;" onchange="frequencyVM.renameButton(${index}, this.value)" />
-            <button class="small-btn" onclick="frequencyVM.removeButton(${index})">Remove</button>
-          `;
-          editor.appendChild(row);
-        });
-      },
-      handleClick(index) {
-        this.buttonClicks[index] += 1;
-        const totalClicks = this.buttonClicks.reduce((a,b)=>a+b,0);
-        const relFreq = totalClicks > 0 ? (this.buttonClicks[index]/totalClicks)*100 : 0;
-        const ts = new Date().toISOString();
-        if (relFreq <= this.frequencyThreshold) {
-          showReinforceOverlay();
-          this.log(`[${ts}] REINFORCE triggered for ${this.buttonNames[index]}.`);
-        }
-        this.log(`[${ts}] ${this.buttonNames[index]} clicked. Relative Frequency: ${relFreq.toFixed(2)}%.`);
-        this.renderLog();
-      },
-      addButton() {
-        this.buttonNames.push("New Behavior");
-        this.buttonClicks.push(0);
-        this.log(`[${new Date().toISOString()}] Added new button: New Behavior.`);
-        this.renderButtons();
-        this.renderEditor();
-        this.renderLog();
-      },
-      renameButton(index, newName) {
-        this.buttonNames[index] = newName;
-        this.renderButtons();
-        this.log(`[${new Date().toISOString()}] Renamed button ${index+1} to ${newName}.`);
-        this.renderLog();
-      },
-      removeButton(index) {
-        if (this.buttonNames.length === 1) return;
-        const ts = new Date().toISOString();
-        this.log(`[${ts}] Removed button: ${this.buttonNames[index]}.`);
-        this.buttonNames.splice(index,1);
-        this.buttonClicks.splice(index,1);
-        this.renderButtons();
-        this.renderEditor();
-        this.renderLog();
-      },
-      log(msg) {
-        this.trackerLog.push(msg);
-      },
-      renderLog() {
-        const el = document.getElementById("freq-log");
-        el.innerHTML = this.trackerLog.map(l => `<div>${l}</div>`).join("");
-      },
-      copyClickData() {
-        navigator.clipboard.writeText(this.trackerLog.join("\n"));
-      }
-    };
-
-    lagVM.init();
     percentileVM.renderResponses();
     percentileVM.renderSummary();
     percentileVM.renderLog();
-    frequencyVM.init();
   </script>
 </body>
 </html>
