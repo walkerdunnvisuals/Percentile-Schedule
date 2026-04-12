@@ -73,6 +73,568 @@
       background: #4caf50;
     }
 
+    .small-btn.primary {
+      background: #2979ff;
+    }
+
+    input[type="text"],
+    input[type="number"] {
+      width: 100%;
+      padding: 0.55rem;
+      margin: 0.25rem 0 0.75rem 0;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
+
+    .inline-input {
+      width: 180px !important;
+      margin: 0 !important;
+    }
+
+    .tracker-box {
+      background: #f0f0f0;
+      padding: 0.75rem;
+      border-radius: 8px;
+      max-height: 320px;
+      overflow-y: auto;
+      font-size: 0.85rem;
+      line-height: 1.35;
+      white-space: pre-wrap;
+    }
+
+    .response-card {
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 0.85rem;
+      margin-bottom: 0.85rem;
+      background: #fafafa;
+    }
+
+    .response-btn {
+      width: 100%;
+      padding: 1rem;
+      background: #2979ff;
+      font-weight: 600;
+      margin-top: 0.5rem;
+    }
+
+    .manual-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 0.6rem;
+    }
+
+    .stat-box {
+      background: #f7f7f7;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 0.85rem;
+      margin-top: 0.75rem;
+    }
+
+    .chip {
+      display: inline-block;
+      padding: 0.3rem 0.6rem;
+      margin: 0.2rem;
+      border-radius: 999px;
+      background: #e3f2fd;
+      font-size: 0.85rem;
+    }
+
+    .muted {
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    #reinforce-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+
+    #reinforce-modal {
+      background: #fff;
+      padding: 2rem 2.5rem;
+      border-radius: 12px;
+      text-align: center;
+      min-width: 260px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    }
+
+    #reinforce-modal h2 {
+      margin-top: 0;
+      color: #075e16;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Percentile-Threshold Schedule</h1>
+  </header>
+
+  <div id="reinforce-overlay">
+    <div id="reinforce-modal">
+      <h2>REINFORCE</h2>
+      <p>Reinforcement available.</p>
+      <button onclick="hideReinforceOverlay()" class="menu-btn" style="background:#f44336;">X</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="section">
+      <div class="flex-between">
+        <h2 style="margin:0;">Response Class Setup</h2>
+        <div class="flex-between" style="gap:0.5rem;">
+          <button onclick="percentileVM.addResponse()" class="small-btn primary">Add Response</button>
+          <button onclick="percentileVM.resetCounts()" class="small-btn danger">Reset Counts</button>
+          <button onclick="percentileVM.clearTracker()" class="small-btn">Clear Tracker</button>
+        </div>
+      </div>
+
+      <div class="manual-row" style="margin-top:0.9rem;">
+        <label for="pct-target-threshold"><strong>Target Threshold (optional):</strong></label>
+        <input
+          type="number"
+          id="pct-target-threshold"
+          class="inline-input"
+          placeholder="optional"
+          onchange="percentileVM.setTargetThreshold(this.value)"
+        />
+      </div>
+
+      <div class="stat-box">
+        <div><strong>Mode:</strong> <span id="pct-mode">N/A</span></div>
+        <div style="margin-top:0.35rem;"><strong>Current Median:</strong> <span id="pct-median">N/A</span></div>
+        <div style="margin-top:0.35rem;"><strong>Active Threshold:</strong> <span id="pct-active-threshold">N/A</span></div>
+        <div style="margin-top:0.75rem;">
+          <strong>Current Counts:</strong>
+          <div id="pct-count-summary" style="margin-top:0.4rem;"></div>
+        </div>
+
+        <div id="single-response-controls" class="hidden" style="margin-top:0.9rem;">
+          <div><strong>Single-Response Session History:</strong></div>
+          <div id="pct-session-history" style="margin-top:0.4rem;"></div>
+          <div class="manual-row" style="margin-top:0.75rem;">
+            <button onclick="percentileVM.endSession()" class="small-btn primary">End Session</button>
+            <button onclick="percentileVM.clearSessionHistory()" class="small-btn danger">Clear Session History</button>
+          </div>
+        </div>
+
+        <div class="muted" id="pct-rule-note" style="margin-top:0.75rem;"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2 style="margin-top:0;">Response Options</h2>
+      <div id="pct-list"></div>
+    </div>
+
+    <div class="section">
+      <div class="flex-between">
+        <h2 style="margin:0;">Click Tracker</h2>
+        <button onclick="percentileVM.copyClickData()" class="small-btn success">Copy Click Tracker</button>
+      </div>
+      <div id="pct-log" class="tracker-box" style="margin-top:0.75rem;"></div>
+    </div>
+  </div>
+
+  <script>
+    function showReinforceOverlay() {
+      document.getElementById("reinforce-overlay").style.display = "flex";
+    }
+
+    function hideReinforceOverlay() {
+      document.getElementById("reinforce-overlay").style.display = "none";
+    }
+
+    const percentileVM = {
+      responses: [],
+      eventLog: [],
+      targetThreshold: null,
+      sessionHistory: [],
+
+      addResponse() {
+        const id = crypto.randomUUID();
+        this.responses.push({
+          id,
+          name: "New Response",
+          count: 0
+        });
+        this.log(`Added response at ${new Date().toISOString()}`);
+        this.renderAll();
+      },
+
+      removeResponse(id) {
+        const item = this.responses.find(r => r.id === id);
+        this.responses = this.responses.filter(r => r.id !== id);
+        this.log(`Removed "${item ? item.name : "response"}" at ${new Date().toISOString()}`);
+        this.renderAll();
+      },
+
+      renameResponse(id, value) {
+        const item = this.responses.find(r => r.id === id);
+        if (item) {
+          item.name = value.trim() || "Unnamed Response";
+          this.renderAll();
+        }
+      },
+
+      setTargetThreshold(value) {
+        const trimmed = String(value).trim();
+        if (trimmed === "") {
+          this.targetThreshold = null;
+        } else {
+          const num = parseFloat(trimmed);
+          this.targetThreshold = !isNaN(num) ? num : null;
+        }
+        this.renderAll();
+      },
+
+      isSingleResponseMode() {
+        return this.responses.length === 1;
+      },
+
+      getCurrentTotal() {
+        return this.responses.reduce((sum, r) => sum + r.count, 0);
+      },
+
+      calculateMedian(values) {
+        if (!values.length) return null;
+        const sorted = [...values].sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        return sorted.length % 2 === 0
+          ? (sorted[mid - 1] + sorted[mid]) / 2
+          : sorted[mid];
+      },
+
+      getLiveMedian() {
+        if (this.isSingleResponseMode()) {
+          return this.calculateMedian(this.sessionHistory);
+        }
+        const counts = this.responses.map(r => r.count);
+        return this.calculateMedian(counts);
+      },
+
+      getActiveThreshold() {
+        const median = this.getLiveMedian();
+        if (median == null && this.targetThreshold == null) return null;
+        if (median == null) return this.targetThreshold;
+        if (this.targetThreshold == null) return median;
+        return Math.max(median, this.targetThreshold);
+      },
+
+      shouldReinforceMulti(beforeCount, afterCount, threshold) {
+        if (threshold === null) return false;
+        return (beforeCount <= threshold) && (afterCount > threshold);
+      },
+
+      shouldReinforceSingle(beforeTotal, afterTotal, threshold) {
+        if (threshold === null) return false;
+        return (beforeTotal <= threshold) && (afterTotal > threshold);
+      },
+
+      clickResponse(id) {
+        const item = this.responses.find(r => r.id === id);
+        if (!item) return;
+
+        const beforeMedian = this.getLiveMedian();
+        const beforeThreshold = this.getActiveThreshold();
+        const beforeCount = item.count;
+        const beforeTotal = this.getCurrentTotal();
+
+        item.count += 1;
+
+        const afterCount = item.count;
+        const afterTotal = this.getCurrentTotal();
+        const afterMedian = this.getLiveMedian();
+        const afterThreshold = this.getActiveThreshold();
+
+        let reinforce = false;
+
+        if (this.isSingleResponseMode()) {
+          reinforce = this.shouldReinforceSingle(beforeTotal, afterTotal, beforeThreshold);
+        } else {
+          reinforce = this.shouldReinforceMulti(beforeCount, afterCount, beforeThreshold);
+        }
+
+        if (reinforce) {
+          showReinforceOverlay();
+        }
+
+        this.log(
+          `[${new Date().toISOString()}] Clicked "${item.name}" | ` +
+          `before count: ${beforeCount} | after count: ${afterCount} | ` +
+          `before total: ${beforeTotal} | after total: ${afterTotal} | ` +
+          `median before: ${beforeMedian ?? "N/A"} | median after: ${afterMedian ?? "N/A"} | ` +
+          `active threshold before: ${beforeThreshold ?? "N/A"} | active threshold after: ${afterThreshold ?? "N/A"} | ` +
+          `${reinforce ? "REINFORCE" : "No reinforcement"}`
+        );
+
+        this.renderAll();
+      },
+
+      manualAdd(id) {
+        const input = document.getElementById(`pct-manual-${id}`);
+        const item = this.responses.find(r => r.id === id);
+        if (!input || !item) return;
+
+        const val = parseInt(input.value, 10);
+        if (isNaN(val) || val <= 0) return;
+
+        const beforeMedian = this.getLiveMedian();
+        const beforeThreshold = this.getActiveThreshold();
+        const beforeCount = item.count;
+        const beforeTotal = this.getCurrentTotal();
+
+        item.count += val;
+        input.value = "";
+
+        const afterCount = item.count;
+        const afterTotal = this.getCurrentTotal();
+        const afterMedian = this.getLiveMedian();
+        const afterThreshold = this.getActiveThreshold();
+
+        let reinforce = false;
+
+        if (this.isSingleResponseMode()) {
+          reinforce = this.shouldReinforceSingle(beforeTotal, afterTotal, beforeThreshold);
+        } else {
+          reinforce = this.shouldReinforceMulti(beforeCount, afterCount, beforeThreshold);
+        }
+
+        if (reinforce) {
+          showReinforceOverlay();
+        }
+
+        this.log(
+          `[${new Date().toISOString()}] Manual add ${val} to "${item.name}" | ` +
+          `before count: ${beforeCount} | after count: ${afterCount} | ` +
+          `before total: ${beforeTotal} | after total: ${afterTotal} | ` +
+          `median before: ${beforeMedian ?? "N/A"} | median after: ${afterMedian ?? "N/A"} | ` +
+          `active threshold before: ${beforeThreshold ?? "N/A"} | active threshold after: ${afterThreshold ?? "N/A"} | ` +
+          `${reinforce ? "REINFORCE" : "No reinforcement"}`
+        );
+
+        this.renderAll();
+      },
+
+      endSession() {
+        if (!this.isSingleResponseMode()) return;
+
+        const total = this.getCurrentTotal();
+        this.sessionHistory.push(total);
+        this.log(`[${new Date().toISOString()}] Ended session | saved total: ${total}`);
+
+        this.responses.forEach(r => {
+          r.count = 0;
+        });
+
+        this.renderAll();
+      },
+
+      clearSessionHistory() {
+        this.sessionHistory = [];
+        this.log(`[${new Date().toISOString()}] Cleared single-response session history`);
+        this.renderAll();
+      },
+
+      resetCounts() {
+        this.responses.forEach(r => {
+          r.count = 0;
+        });
+        this.log(`Counts reset at ${new Date().toISOString()}`);
+        this.renderAll();
+      },
+
+      clearTracker() {
+        this.eventLog = [];
+        this.renderLog();
+      },
+
+      renderResponses() {
+        const list = document.getElementById("pct-list");
+        list.innerHTML = "";
+
+        this.responses.forEach(r => {
+          const div = document.createElement("div");
+          div.className = "response-card";
+          div.innerHTML = `
+            <div class="flex-between">
+              <input
+                type="text"
+                value="${r.name.replace(/"/g, "&quot;")}"
+                onchange="percentileVM.renameResponse('${r.id}', this.value)"
+                style="flex:1;"
+              />
+              <button class="small-btn danger" onclick="percentileVM.removeResponse('${r.id}')">Remove</button>
+            </div>
+
+            <div style="margin-top:0.5rem;"><strong>Count:</strong> ${r.count}</div>
+
+            <button class="response-btn" onclick="percentileVM.clickResponse('${r.id}')">
+              ${r.name} (+1)
+            </button>
+
+            <div class="manual-row">
+              <input id="pct-manual-${r.id}" type="number" min="1" placeholder="Manual add" class="inline-input" />
+              <button class="small-btn success" onclick="percentileVM.manualAdd('${r.id}')">Add Input</button>
+            </div>
+          `;
+          list.appendChild(div);
+        });
+      },
+
+      renderSummary() {
+        const median = this.getLiveMedian();
+        const activeThreshold = this.getActiveThreshold();
+        const isSingle = this.isSingleResponseMode();
+
+        document.getElementById("pct-mode").textContent =
+          isSingle ? "Single-response mode" : "Multi-response mode";
+
+        document.getElementById("pct-median").textContent =
+          median == null ? "N/A" : (Number.isInteger(median) ? median : median.toFixed(2));
+
+        document.getElementById("pct-active-threshold").textContent =
+          activeThreshold == null ? "N/A" : (Number.isInteger(activeThreshold) ? activeThreshold : activeThreshold.toFixed(2));
+
+        const summary = document.getElementById("pct-count-summary");
+        if (!this.responses.length) {
+          summary.innerHTML = `<span class="chip">No responses added yet</span>`;
+        } else {
+          const chips = this.responses.map(r => `<span class="chip">${r.name}: ${r.count}</span>`);
+          chips.push(`<span class="chip">Total: ${this.getCurrentTotal()}</span>`);
+          summary.innerHTML = chips.join("");
+        }
+
+        const singleControls = document.getElementById("single-response-controls");
+        const sessionHistoryEl = document.getElementById("pct-session-history");
+        singleControls.classList.toggle("hidden", !isSingle);
+
+        if (isSingle) {
+          sessionHistoryEl.innerHTML = this.sessionHistory.length
+            ? this.sessionHistory.map((v, i) => `<span class="chip">Session ${i + 1}: ${v}</span>`).join("")
+            : `<span class="chip">No saved sessions yet</span>`;
+        }
+
+        const ruleNote = document.getElementById("pct-rule-note");
+        ruleNote.textContent = isSingle
+          ? "Single-response mode: reinforcement occurs when the current session total goes from at or below the active threshold to above it. Use End Session to save the total into history."
+          : "Multi-response mode: reinforcement occurs when a response topography goes from at or below the active threshold to above it.";
+      },
+
+      log(msg) {
+        this.eventLog.push(msg);
+      },
+
+      renderLog() {
+        const el = document.getElementById("pct-log");
+        el.textContent = this.eventLog.length
+          ? this.eventLog.join("\n")
+          : "No entries yet.";
+      },
+
+      copyClickData() {
+        navigator.clipboard.writeText(this.eventLog.join("\n"));
+      },
+
+      renderAll() {
+        this.renderResponses();
+        this.renderSummary();
+        this.renderLog();
+      }
+    };
+
+    percentileVM.renderAll();
+  </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Percentile-Threshold Schedule</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      background: #f5f5f5;
+      color: #222;
+    }
+
+    header {
+      background: #222;
+      color: #fff;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 1rem auto;
+      padding: 0 1rem 2rem;
+    }
+
+    .section {
+      background: #fff;
+      padding: 1rem;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.1);
+      margin-bottom: 1rem;
+    }
+
+    .flex-between {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .menu-btn,
+    .small-btn,
+    .response-btn {
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    .menu-btn {
+      display: block;
+      width: 100%;
+      margin: 0.5rem 0;
+      padding: 0.75rem 1rem;
+      background: #2979ff;
+    }
+
+    .small-btn {
+      padding: 0.45rem 0.75rem;
+      font-size: 0.85rem;
+      background: #666;
+    }
+
+    .small-btn.danger {
+      background: #f44336;
+    }
+
+    .small-btn.success {
+      background: #4caf50;
+    }
+
     input[type="text"],
     input[type="number"] {
       width: 100%;
