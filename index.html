@@ -349,14 +349,12 @@
       let hours = date.getHours();
       const minutes = String(date.getMinutes()).padStart(2, "0");
       const seconds = String(date.getSeconds()).padStart(2, "0");
-      const ampm = hours >= 12 ? "am" : "am"; // temporary overwritten below
-      let normalizedHours = hours;
-      const actualAmpm = normalizedHours >= 12 ? "pm" : "am";
+      const actualAmpm = hours >= 12 ? "pm" : "am";
 
-      normalizedHours = normalizedHours % 12;
-      if (normalizedHours === 0) normalizedHours = 12;
+      hours = hours % 12;
+      if (hours === 0) hours = 12;
 
-      const hh = String(normalizedHours).padStart(2, "0");
+      const hh = String(hours).padStart(2, "0");
       return `${mm}/${dd}/${yyyy}, ${hh}:${minutes}:${seconds} ${actualAmpm}`;
     }
 
@@ -557,9 +555,6 @@
           score_to_beat: scoreToBeat === null ? "N/A" : scoreToBeat,
           reinforced: reinforced ? 1 : 0,
           recent_score_sample: `[${recentScoreSample.join(", ")}]`,
-          percentile: this.settings.percentile,
-          score_sample_size: this.settings.scoreSampleSize,
-          trial_length: this.settings.trialLength,
           u_value_running: uValue === null ? "N/A" : uValue.toFixed(3),
           unique_sequences_running: uniqueSequences,
           percent_reinforced_running: totalTrials ? ((reinforcedTrials / totalTrials) * 100).toFixed(1) : "N/A",
@@ -630,9 +625,6 @@
           "score_to_beat",
           "reinforced",
           "recent_score_sample",
-          "percentile",
-          "score_sample_size",
-          "trial_length",
           "u_value_running",
           "unique_sequences_running",
           "percent_reinforced_running",
@@ -651,9 +643,6 @@
             row.score_to_beat,
             row.reinforced,
             row.recent_score_sample,
-            row.percentile,
-            row.score_sample_size,
-            row.trial_length,
             row.u_value_running,
             row.unique_sequences_running,
             row.percent_reinforced_running,
@@ -675,6 +664,9 @@
 
           lines.push("");
           lines.push("SESSION SUMMARY");
+          lines.push(`percentile\t${this.settings.percentile ?? "N/A"}`);
+          lines.push(`score_sample_size\t${this.settings.scoreSampleSize ?? "N/A"}`);
+          lines.push(`trial_length\t${this.settings.trialLength ?? "N/A"}`);
           lines.push(`u_value_final\t${uValue === null ? "N/A" : uValue.toFixed(3)}`);
           lines.push(`total_completed_trials\t${totalTrials}`);
           lines.push(`reinforced_trials\t${reinforcedTrials}`);
@@ -720,7 +712,7 @@
         const uValue = this.computeUValue();
 
         const payload = {
-          version: 5,
+          version: 6,
           exportedAt: formatTimestamp(),
           settings: this.settings,
           responseOptions: this.responseOptions,
@@ -730,6 +722,9 @@
           trialOutcomes: this.trialOutcomes,
           trackerRows: this.trackerRows,
           sessionSummary: {
+            percentile: this.settings.percentile,
+            scoreSampleSize: this.settings.scoreSampleSize,
+            trialLength: this.settings.trialLength,
             totalTrials,
             reinforcedTrials,
             percentReinforced: totalTrials ? (reinforcedTrials / totalTrials) * 100 : null,
