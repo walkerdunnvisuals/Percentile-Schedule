@@ -298,10 +298,12 @@
 
       <div class="grid-2">
         <div class="stat-box">
-          <div><strong>Current Criterion:</strong> <span id="current-criterion">N/A</span></div>
+          <div><strong>Score to Beat:</strong> <span id="current-criterion">N/A</span></div>
+          <div style="margin-top:0.35rem;"><strong>Decision Rule:</strong> <span id="decision-rule">Reinforce if trial score &gt; score to beat</span></div>
           <div style="margin-top:0.35rem;"><strong>Recent Score Sample:</strong> <span id="recent-score-sample">N/A</span></div>
           <div style="margin-top:0.35rem;"><strong>Last Completed Trial:</strong> <span id="last-completed-trial">N/A</span></div>
-          <div style="margin-top:0.35rem;"><strong>Last Variability Score:</strong> <span id="last-score">N/A</span></div>
+          <div style="margin-top:0.35rem;"><strong>Last Trial Score:</strong> <span id="last-score">N/A</span></div>
+          <div style="margin-top:0.35rem;"><strong>Last Comparison:</strong> <span id="last-comparison">N/A</span></div>
           <div style="margin-top:0.35rem;"><strong>Last Outcome:</strong> <span id="last-outcome" class="status-neutral">N/A</span></div>
         </div>
 
@@ -311,6 +313,19 @@
           <div style="margin-top:0.75rem;"><strong>Recent Completed Trials:</strong></div>
           <div id="recent-trials-summary" style="margin-top:0.4rem;">No completed trials yet.</div>
         </div>
+      </div>
+
+      <div class="stat-box">
+        <div><strong>Session Analysis:</strong></div>
+        <div style="margin-top:0.35rem;"><strong>U-Value:</strong> <span id="session-u-value">N/A</span></div>
+        <div style="margin-top:0.35rem;"><strong>Total Completed Trials:</strong> <span id="session-total-trials">0</span></div>
+        <div style="margin-top:0.35rem;"><strong>Reinforced Trials:</strong> <span id="session-reinforced-trials">0</span></div>
+        <div style="margin-top:0.35rem;"><strong>Percent Reinforced:</strong> <span id="session-percent-reinforced">N/A</span></div>
+        <div style="margin-top:0.35rem;"><strong>Zero-Score Repetitions:</strong> <span id="session-zero-score-count">0</span></div>
+        <div style="margin-top:0.35rem;"><strong>Percent Zero-Score:</strong> <span id="session-percent-zero-score">N/A</span></div>
+        <div style="margin-top:0.35rem;"><strong>Unique Sequences Emitted:</strong> <span id="session-unique-sequences">0</span></div>
+        <div style="margin-top:0.35rem;"><strong>Mean Trial Score:</strong> <span id="session-mean-score">N/A</span></div>
+        <div style="margin-top:0.35rem;"><strong>Median Trial Score:</strong> <span id="session-median-score">N/A</span></div>
       </div>
     </div>
 
@@ -368,6 +383,7 @@
       currentTrial: [],
       completedTrials: [],
       variabilityScores: [],
+      trialOutcomes: [],
       trackerLog: [],
 
       settings: {
@@ -514,6 +530,51 @@
         return score > criterion;
       },
 
+      getPossibleSequenceCount() {
+        const numOptions = this.responseOptions.length;
+        const trialLength = this.settings.trialLength;
+        if (!this.settingsReady() || numOptions < 1 || trialLength < 1) return 0;
+        return Math.pow(numOptions, trialLength);
+      },
+
+      computeUValue() {
+        const totalTrials = this.completedTrials.length;
+        const numPossible = this.getPossibleSequenceCount();
+
+        if (!this.settingsReady() || totalTrials === 0 || numPossible <= 1) return null;
+
+        const counts = {};
+        for (const seq of this.completedTrials) {
+          counts[seq] = (counts[seq] || 0) + 1;
+        }
+
+        let sum = 0;
+        for (const seq in counts) {
+          const p = counts[seq] / totalTrials;
+          sum += p * Math.log2(p);
+        }
+
+        return -sum / Math.log2(numPossible);
+      },
+
+      computeMedian(values) {
+        if (!values.length) return null;
+        const sorted = [...values].sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        if (sorted.length % 2 === 0) {
+          return (sorted[mid - 1] + sorted[mid]) / 2;
+        }
+        return sorted[mid];
+      },
+
+      getReinforcedTrialCount() {
+        return this.trialOutcomes.filter(Boolean).length;
+      },
+
+      getZeroScoreCount() {
+        return this.variabilityScores.filter(score => score === 0).length;
+      },
+
       completeTrial() {
         const completed = [...this.currentTrial];
         const sequenceKey = this.sequenceToKey(completed);
@@ -525,6 +586,7 @@
 
         this.completedTrials.push(sequenceKey);
         this.variabilityScores.push(variabilityScore);
+        this.trialOutcomes.push(criterial);
 
         const outcomeText = criterial ? "REINFORCE" : "No reinforcement";
 
@@ -571,6 +633,7 @@
         this.currentTrial = [];
         this.completedTrials = [];
         this.variabilityScores = [];
+        this.trialOutcomes = [];
         this.log(`[${formatTimestamp()}] Session reset`);
         this.renderAll();
       },
@@ -585,15 +648,37 @@
       },
 
       exportSessionData() {
+        const totalTrials = this.completedTrials.length;
+        const reinforcedTrials = this.getReinforcedTrialCount();
+        const zeroScoreCount = this.getZeroScoreCount();
+        const uniqueSequences = new Set(this.completedTrials).size;
+        const meanScore = this.variabilityScores.length
+          ? this.variabilityScores.reduce((a, b) => a + b, 0) / this.variabilityScores.length
+          : null;
+        const medianScore = this.computeMedian(this.variabilityScores);
+        const uValue = this.computeUValue();
+
         const payload = {
-          version: 2,
+          version: 3,
           exportedAt: formatTimestamp(),
           settings: this.settings,
           responseOptions: this.responseOptions,
           currentTrial: this.currentTrial,
           completedTrials: this.completedTrials,
           variabilityScores: this.variabilityScores,
-          trackerLog: this.trackerLog
+          trialOutcomes: this.trialOutcomes,
+          trackerLog: this.trackerLog,
+          sessionSummary: {
+            totalTrials,
+            reinforcedTrials,
+            percentReinforced: totalTrials ? (reinforcedTrials / totalTrials) * 100 : null,
+            zeroScoreCount,
+            percentZeroScore: totalTrials ? (zeroScoreCount / totalTrials) * 100 : null,
+            uniqueSequences,
+            meanScore,
+            medianScore,
+            uValue
+          }
         };
 
         const box = document.getElementById("session-data-box");
@@ -635,6 +720,7 @@
         this.currentTrial = Array.isArray(data.currentTrial) ? data.currentTrial : [];
         this.completedTrials = Array.isArray(data.completedTrials) ? data.completedTrials : [];
         this.variabilityScores = Array.isArray(data.variabilityScores) ? data.variabilityScores : [];
+        this.trialOutcomes = Array.isArray(data.trialOutcomes) ? data.trialOutcomes : [];
         this.trackerLog = Array.isArray(data.trackerLog) ? data.trackerLog : [];
 
         document.getElementById("trial-length").value = this.settings.trialLength ?? "";
@@ -733,13 +819,21 @@
         document.getElementById("last-completed-trial").textContent = lastTrial ?? "N/A";
         document.getElementById("last-score").textContent = lastScore ?? "N/A";
 
-        const lastLog = this.trackerLog.length ? this.trackerLog[this.trackerLog.length - 1] : "";
+        const comparisonEl = document.getElementById("last-comparison");
+        if (lastScore === null || criterion === null) {
+          comparisonEl.textContent = "N/A";
+        } else {
+          const comparisonText = `${lastScore} > ${criterion} = ${lastScore > criterion ? "REINFORCE" : "NO REINFORCEMENT"}`;
+          comparisonEl.textContent = comparisonText;
+        }
+
+        const lastOutcome = this.trialOutcomes.length ? this.trialOutcomes[this.trialOutcomes.length - 1] : null;
         const outcomeEl = document.getElementById("last-outcome");
 
-        if (lastLog.includes("REINFORCE")) {
+        if (lastOutcome === true) {
           outcomeEl.textContent = "REINFORCE";
           outcomeEl.className = "status-good";
-        } else if (lastLog.includes("No reinforcement")) {
+        } else if (lastOutcome === false) {
           outcomeEl.textContent = "No reinforcement";
           outcomeEl.className = "status-bad";
         } else {
@@ -772,6 +866,34 @@
             })
             .join("");
         }
+
+        const totalTrials = this.completedTrials.length;
+        const reinforcedTrials = this.getReinforcedTrialCount();
+        const zeroScoreCount = this.getZeroScoreCount();
+        const uniqueSequences = new Set(this.completedTrials).size;
+        const meanScore = this.variabilityScores.length
+          ? this.variabilityScores.reduce((a, b) => a + b, 0) / this.variabilityScores.length
+          : null;
+        const medianScore = this.computeMedian(this.variabilityScores);
+        const uValue = this.computeUValue();
+
+        document.getElementById("session-u-value").textContent =
+          uValue === null ? "N/A" : uValue.toFixed(3);
+
+        document.getElementById("session-total-trials").textContent = totalTrials;
+        document.getElementById("session-reinforced-trials").textContent = reinforcedTrials;
+        document.getElementById("session-percent-reinforced").textContent =
+          totalTrials ? `${((reinforcedTrials / totalTrials) * 100).toFixed(1)}%` : "N/A";
+
+        document.getElementById("session-zero-score-count").textContent = zeroScoreCount;
+        document.getElementById("session-percent-zero-score").textContent =
+          totalTrials ? `${((zeroScoreCount / totalTrials) * 100).toFixed(1)}%` : "N/A";
+
+        document.getElementById("session-unique-sequences").textContent = uniqueSequences;
+        document.getElementById("session-mean-score").textContent =
+          meanScore === null ? "N/A" : meanScore.toFixed(2);
+        document.getElementById("session-median-score").textContent =
+          medianScore === null ? "N/A" : medianScore;
       },
 
       renderTracker() {
