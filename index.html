@@ -494,9 +494,6 @@
         return this.variabilityScores.slice(-n);
       },
 
-      // Machado-style discrete percentile rule:
-      // criterion corresponds to the ranked observation n = floor(sampleSize * (percentile / 100))
-      // with 1-based rank, adapted to the actual number of available recent scores.
       computeCriterion(scores) {
         if (!scores.length) return null;
 
@@ -511,9 +508,6 @@
         return sorted[rank - 1];
       },
 
-      // Translational tie rule:
-      // criterial only if score strictly exceeds criterion
-      // zero-score repetitions are never reinforced
       isCriterial(score, criterion) {
         if (criterion === null) return false;
         if (score === 0) return false;
@@ -673,7 +667,7 @@
               <input
                 type="text"
                 value="${(option.name || "").replace(/"/g, "&quot;")}"
-                placeholder="e.g. sign"
+                placeholder="Input response"
                 onchange="app.renameResponseOption('${option.id}', this.value)"
                 style="flex:1;"
               />
@@ -713,7 +707,7 @@
 
         const warning = document.getElementById("settings-warning");
         warning.textContent = this.settingsReady()
-          ? "Settings applied. Trials score using recency-to-last-match and a Machado-style discrete percentile criterion. Reinforcement occurs only when score > criterion."
+          ? "Settings applied."
           : "Enter values above and click Apply Settings before running trials.";
 
         document.getElementById("current-trial-display").textContent =
