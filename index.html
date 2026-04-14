@@ -104,11 +104,12 @@
       background: #f0f0f0;
       padding: 0.75rem;
       border-radius: 8px;
-      max-height: 320px;
+      max-height: 360px;
       overflow-y: auto;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       line-height: 1.35;
-      white-space: pre-wrap;
+      white-space: pre;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     }
 
     .response-card {
@@ -303,19 +304,17 @@
           <div id="recent-trials-summary" style="margin-top:0.4rem;">No completed trials yet.</div>
         </div>
       </div>
+    </div>
 
-      <div class="stat-box">
-        <div><strong>Session Analysis:</strong></div>
-        <div style="margin-top:0.35rem;"><strong>U-Value:</strong> <span id="session-u-value">N/A</span></div>
-        <div style="margin-top:0.35rem;"><strong>Total Completed Trials:</strong> <span id="session-total-trials">0</span></div>
-        <div style="margin-top:0.35rem;"><strong>Reinforced Trials:</strong> <span id="session-reinforced-trials">0</span></div>
-        <div style="margin-top:0.35rem;"><strong>Percent Reinforced:</strong> <span id="session-percent-reinforced">N/A</span></div>
-        <div style="margin-top:0.35rem;"><strong>Zero-Score Repetitions:</strong> <span id="session-zero-score-count">0</span></div>
-        <div style="margin-top:0.35rem;"><strong>Percent Zero-Score:</strong> <span id="session-percent-zero-score">N/A</span></div>
-        <div style="margin-top:0.35rem;"><strong>Unique Sequences Emitted:</strong> <span id="session-unique-sequences">0</span></div>
-        <div style="margin-top:0.35rem;"><strong>Mean Trial Score:</strong> <span id="session-mean-score">N/A</span></div>
-        <div style="margin-top:0.35rem;"><strong>Median Trial Score:</strong> <span id="session-median-score">N/A</span></div>
+    <div class="section">
+      <div class="flex-between">
+        <h2 style="margin:0;">Click Tracker (TSV Preview)</h2>
+        <button onclick="app.copyTracker()" class="small-btn success">Copy Click Tracker</button>
       </div>
+      <div class="field-note" style="margin-top:0.5rem;">
+        Copying exports tab-separated trial rows plus a session summary so it can be pasted directly into Excel.
+      </div>
+      <div id="tracker" class="tracker-box" style="margin-top:0.75rem;">No completed trials yet.</div>
     </div>
 
     <div class="section">
@@ -330,14 +329,6 @@
         Copy exported session data and save it somewhere. Later, paste it back here to resume the session on GitHub Pages.
       </div>
       <textarea id="session-data-box" placeholder="Exported session data will appear here, or paste saved session data here to import."></textarea>
-    </div>
-
-    <div class="section">
-      <div class="flex-between">
-        <h2 style="margin:0;">Click Tracker</h2>
-        <button onclick="app.copyTracker()" class="small-btn success">Copy Click Tracker</button>
-      </div>
-      <div id="tracker" class="tracker-box" style="margin-top:0.75rem;">No entries yet.</div>
     </div>
   </div>
 
@@ -358,13 +349,15 @@
       let hours = date.getHours();
       const minutes = String(date.getMinutes()).padStart(2, "0");
       const seconds = String(date.getSeconds()).padStart(2, "0");
-      const ampm = hours >= 12 ? "pm" : "am";
+      const ampm = hours >= 12 ? "am" : "am"; // temporary overwritten below
+      let normalizedHours = hours;
+      const actualAmpm = normalizedHours >= 12 ? "pm" : "am";
 
-      hours = hours % 12;
-      if (hours === 0) hours = 12;
+      normalizedHours = normalizedHours % 12;
+      if (normalizedHours === 0) normalizedHours = 12;
 
-      const hh = String(hours).padStart(2, "0");
-      return `${mm}/${dd}/${yyyy}, ${hh}:${minutes}:${seconds} ${ampm}`;
+      const hh = String(normalizedHours).padStart(2, "0");
+      return `${mm}/${dd}/${yyyy}, ${hh}:${minutes}:${seconds} ${actualAmpm}`;
     }
 
     const app = {
@@ -373,7 +366,7 @@
       completedTrials: [],
       variabilityScores: [],
       trialOutcomes: [],
-      trackerLog: [],
+      trackerRows: [],
 
       settings: {
         trialLength: null,
@@ -383,26 +376,18 @@
 
       addResponseOption() {
         const id = crypto.randomUUID();
-        this.responseOptions.push({
-          id,
-          name: ""
-        });
-        this.log(`Added response option at ${formatTimestamp()}`);
+        this.responseOptions.push({ id, name: "" });
         this.renderAll();
       },
 
       removeResponseOption(id) {
-        const item = this.responseOptions.find(r => r.id === id);
         this.responseOptions = this.responseOptions.filter(r => r.id !== id);
-        this.log(`Removed response option "${(item && item.name) ? item.name : "Unnamed Response"}" at ${formatTimestamp()}`);
         this.renderAll();
       },
 
       renameResponseOption(id, value) {
         const item = this.responseOptions.find(r => r.id === id);
-        if (item) {
-          item.name = value;
-        }
+        if (item) item.name = value;
         this.renderAll();
       },
 
@@ -417,7 +402,6 @@
         const scoreSampleSize = parseInt(document.getElementById("score-sample-size").value, 10);
 
         let valid = true;
-
         if (!Number.isInteger(trialLength) || trialLength < 1) valid = false;
         if (!Number.isInteger(percentile) || percentile < 1 || percentile > 99) valid = false;
         if (!Number.isInteger(scoreSampleSize) || scoreSampleSize < 1) valid = false;
@@ -430,12 +414,6 @@
         this.settings.trialLength = trialLength;
         this.settings.percentile = percentile;
         this.settings.scoreSampleSize = scoreSampleSize;
-
-        this.log(
-          `[${formatTimestamp()}] Applied settings | ` +
-          `trial length: ${trialLength} | percentile: ${percentile} | ` +
-          `score sample size: ${scoreSampleSize}`
-        );
 
         this.renderAll();
       },
@@ -451,12 +429,10 @@
 
       inputResponse(id) {
         if (!this.settingsReady()) return;
-
         const option = this.responseOptions.find(r => r.id === id);
         if (!option) return;
 
         this.currentTrial.push(this.getDisplayName(option));
-        this.log(`[${formatTimestamp()}] Input response: ${this.getDisplayName(option)}`);
 
         if (this.currentTrial.length >= this.settings.trialLength) {
           this.completeTrial();
@@ -467,8 +443,7 @@
 
       undoLastInput() {
         if (this.currentTrial.length === 0) return;
-        const removed = this.currentTrial.pop();
-        this.log(`[${formatTimestamp()}] Removed last trial input: ${removed}`);
+        this.currentTrial.pop();
         this.renderAll();
       },
 
@@ -490,8 +465,7 @@
 
       getRecentScoreSampleBeforeCurrent() {
         if (!this.settingsReady()) return [];
-        const n = this.settings.scoreSampleSize;
-        return this.variabilityScores.slice(-n);
+        return this.variabilityScores.slice(-this.settings.scoreSampleSize);
       },
 
       computeCriterion(scores) {
@@ -521,14 +495,14 @@
         return Math.pow(numOptions, trialLength);
       },
 
-      computeUValue() {
-        const totalTrials = this.completedTrials.length;
+      computeUValueFromTrials(trialsArray) {
+        const totalTrials = trialsArray.length;
         const numPossible = this.getPossibleSequenceCount();
 
         if (!this.settingsReady() || totalTrials === 0 || numPossible <= 1) return null;
 
         const counts = {};
-        for (const seq of this.completedTrials) {
+        for (const seq of trialsArray) {
           counts[seq] = (counts[seq] || 0) + 1;
         }
 
@@ -539,6 +513,10 @@
         }
 
         return -sum / Math.log2(numPossible);
+      },
+
+      computeUValue() {
+        return this.computeUValueFromTrials(this.completedTrials);
       },
 
       computeMedian(values) {
@@ -559,9 +537,41 @@
         return this.variabilityScores.filter(score => score === 0).length;
       },
 
+      addTrackerRow(timestamp, sequenceKey, trialScore, scoreToBeat, reinforced, recentScoreSample) {
+        const trialNumber = this.completedTrials.length;
+        const runningTrials = [...this.completedTrials];
+        const runningScores = [...this.variabilityScores];
+        const runningOutcomes = [...this.trialOutcomes];
+
+        const totalTrials = runningTrials.length;
+        const reinforcedTrials = runningOutcomes.filter(Boolean).length;
+        const zeroScoreCount = runningScores.filter(score => score === 0).length;
+        const uniqueSequences = new Set(runningTrials).size;
+        const uValue = this.computeUValueFromTrials(runningTrials);
+
+        this.trackerRows.push({
+          timestamp,
+          trial_number: trialNumber,
+          sequence: sequenceKey,
+          trial_score: trialScore,
+          score_to_beat: scoreToBeat === null ? "N/A" : scoreToBeat,
+          reinforced: reinforced ? 1 : 0,
+          recent_score_sample: `[${recentScoreSample.join(", ")}]`,
+          percentile: this.settings.percentile,
+          score_sample_size: this.settings.scoreSampleSize,
+          trial_length: this.settings.trialLength,
+          u_value_running: uValue === null ? "N/A" : uValue.toFixed(3),
+          unique_sequences_running: uniqueSequences,
+          percent_reinforced_running: totalTrials ? ((reinforcedTrials / totalTrials) * 100).toFixed(1) : "N/A",
+          zero_score_count_running: zeroScoreCount,
+          percent_zero_score_running: totalTrials ? ((zeroScoreCount / totalTrials) * 100).toFixed(1) : "N/A"
+        });
+      },
+
       completeTrial() {
         const completed = [...this.currentTrial];
         const sequenceKey = this.sequenceToKey(completed);
+        const timestamp = formatTimestamp();
 
         const scoreSampleBefore = this.getRecentScoreSampleBeforeCurrent();
         const criterionBefore = this.computeCriterion(scoreSampleBefore);
@@ -572,20 +582,18 @@
         this.variabilityScores.push(variabilityScore);
         this.trialOutcomes.push(criterial);
 
-        const outcomeText = criterial ? "REINFORCE" : "No reinforcement";
+        this.addTrackerRow(
+          timestamp,
+          sequenceKey,
+          variabilityScore,
+          criterionBefore,
+          criterial,
+          scoreSampleBefore
+        );
 
         if (criterial) {
           showReinforceOverlay();
         }
-
-        this.log(
-          `[${formatTimestamp()}] Completed trial | ` +
-          `sequence: ${sequenceKey} | ` +
-          `variability score: ${variabilityScore} | ` +
-          `criterion used: ${criterionBefore === null ? "N/A" : criterionBefore} | ` +
-          `recent score sample used: ${scoreSampleBefore.length ? "[" + scoreSampleBefore.join(", ") + "]" : "N/A"} | ` +
-          `${outcomeText}`
-        );
 
         this.currentTrial = [];
         this.renderAll();
@@ -613,22 +621,91 @@
         return counts;
       },
 
+      buildTrackerTSV(includeSummary = false) {
+        const header = [
+          "timestamp",
+          "trial_number",
+          "sequence",
+          "trial_score",
+          "score_to_beat",
+          "reinforced",
+          "recent_score_sample",
+          "percentile",
+          "score_sample_size",
+          "trial_length",
+          "u_value_running",
+          "unique_sequences_running",
+          "percent_reinforced_running",
+          "zero_score_count_running",
+          "percent_zero_score_running"
+        ];
+
+        const lines = [header.join("\t")];
+
+        for (const row of this.trackerRows) {
+          lines.push([
+            row.timestamp,
+            row.trial_number,
+            row.sequence,
+            row.trial_score,
+            row.score_to_beat,
+            row.reinforced,
+            row.recent_score_sample,
+            row.percentile,
+            row.score_sample_size,
+            row.trial_length,
+            row.u_value_running,
+            row.unique_sequences_running,
+            row.percent_reinforced_running,
+            row.zero_score_count_running,
+            row.percent_zero_score_running
+          ].join("\t"));
+        }
+
+        if (includeSummary) {
+          const totalTrials = this.completedTrials.length;
+          const reinforcedTrials = this.getReinforcedTrialCount();
+          const zeroScoreCount = this.getZeroScoreCount();
+          const uniqueSequences = new Set(this.completedTrials).size;
+          const meanScore = this.variabilityScores.length
+            ? this.variabilityScores.reduce((a, b) => a + b, 0) / this.variabilityScores.length
+            : null;
+          const medianScore = this.computeMedian(this.variabilityScores);
+          const uValue = this.computeUValue();
+
+          lines.push("");
+          lines.push("SESSION SUMMARY");
+          lines.push(`u_value_final\t${uValue === null ? "N/A" : uValue.toFixed(3)}`);
+          lines.push(`total_completed_trials\t${totalTrials}`);
+          lines.push(`reinforced_trials\t${reinforcedTrials}`);
+          lines.push(`percent_reinforced\t${totalTrials ? ((reinforcedTrials / totalTrials) * 100).toFixed(1) : "N/A"}`);
+          lines.push(`zero_score_repetitions\t${zeroScoreCount}`);
+          lines.push(`percent_zero_score\t${totalTrials ? ((zeroScoreCount / totalTrials) * 100).toFixed(1) : "N/A"}`);
+          lines.push(`unique_sequences_emitted\t${uniqueSequences}`);
+          lines.push(`mean_trial_score\t${meanScore === null ? "N/A" : meanScore.toFixed(2)}`);
+          lines.push(`median_trial_score\t${medianScore === null ? "N/A" : medianScore}`);
+        }
+
+        return lines.join("\n");
+      },
+
       resetSession() {
         this.currentTrial = [];
         this.completedTrials = [];
         this.variabilityScores = [];
         this.trialOutcomes = [];
-        this.log(`[${formatTimestamp()}] Session reset`);
+        this.trackerRows = [];
         this.renderAll();
       },
 
       clearTracker() {
-        this.trackerLog = [];
+        this.trackerRows = [];
         this.renderTracker();
       },
 
       copyTracker() {
-        navigator.clipboard.writeText(this.trackerLog.join("\n"));
+        const output = this.buildTrackerTSV(true);
+        navigator.clipboard.writeText(output);
       },
 
       exportSessionData() {
@@ -643,7 +720,7 @@
         const uValue = this.computeUValue();
 
         const payload = {
-          version: 4,
+          version: 5,
           exportedAt: formatTimestamp(),
           settings: this.settings,
           responseOptions: this.responseOptions,
@@ -651,7 +728,7 @@
           completedTrials: this.completedTrials,
           variabilityScores: this.variabilityScores,
           trialOutcomes: this.trialOutcomes,
-          trackerLog: this.trackerLog,
+          trackerRows: this.trackerRows,
           sessionSummary: {
             totalTrials,
             reinforcedTrials,
@@ -665,16 +742,11 @@
           }
         };
 
-        const box = document.getElementById("session-data-box");
-        box.value = JSON.stringify(payload, null, 2);
-        this.log(`[${formatTimestamp()}] Exported session data`);
-        this.renderTracker();
+        document.getElementById("session-data-box").value = JSON.stringify(payload, null, 2);
       },
 
       importSessionData() {
-        const box = document.getElementById("session-data-box");
-        const raw = box.value.trim();
-
+        const raw = document.getElementById("session-data-box").value.trim();
         if (!raw) {
           alert("Paste session data into the box first.");
           return;
@@ -685,11 +757,6 @@
           data = JSON.parse(raw);
         } catch (error) {
           alert("That session data is not valid JSON.");
-          return;
-        }
-
-        if (!data || typeof data !== "object") {
-          alert("Invalid session data.");
           return;
         }
 
@@ -704,18 +771,13 @@
         this.completedTrials = Array.isArray(data.completedTrials) ? data.completedTrials : [];
         this.variabilityScores = Array.isArray(data.variabilityScores) ? data.variabilityScores : [];
         this.trialOutcomes = Array.isArray(data.trialOutcomes) ? data.trialOutcomes : [];
-        this.trackerLog = Array.isArray(data.trackerLog) ? data.trackerLog : [];
+        this.trackerRows = Array.isArray(data.trackerRows) ? data.trackerRows : [];
 
         document.getElementById("trial-length").value = this.settings.trialLength ?? "";
         document.getElementById("percentile-value").value = this.settings.percentile ?? "";
         document.getElementById("score-sample-size").value = this.settings.scoreSampleSize ?? "";
 
-        this.log(`[${formatTimestamp()}] Imported session data`);
         this.renderAll();
-      },
-
-      log(message) {
-        this.trackerLog.push(message);
       },
 
       renderResponseEditor() {
@@ -772,8 +834,7 @@
         document.getElementById("active-percentile").textContent = this.settings.percentile ?? "N/A";
         document.getElementById("active-score-sample-size").textContent = this.settings.scoreSampleSize ?? "N/A";
 
-        const warning = document.getElementById("settings-warning");
-        warning.textContent = this.settingsReady()
+        document.getElementById("settings-warning").textContent = this.settingsReady()
           ? "Settings applied."
           : "Enter values above and click Apply Settings before running trials.";
 
@@ -788,15 +849,12 @@
         const recentScores = this.getRecentScoreSampleBeforeCurrent();
         const criterion = this.computeCriterion(recentScores);
 
-        document.getElementById("current-criterion").textContent =
-          criterion === null ? "N/A" : criterion;
-
+        document.getElementById("current-criterion").textContent = criterion === null ? "N/A" : criterion;
         document.getElementById("recent-score-sample").textContent =
-          recentScores.length ? "[" + recentScores.join(", ") + "]" : "N/A";
+          recentScores.length ? `[${recentScores.join(", ")}]` : "N/A";
 
         const lastTrial = this.completedTrials.length ? this.completedTrials[this.completedTrials.length - 1] : null;
         const lastScore = this.variabilityScores.length ? this.variabilityScores[this.variabilityScores.length - 1] : null;
-
         document.getElementById("last-completed-trial").textContent = lastTrial ?? "N/A";
         document.getElementById("last-score").textContent = lastScore ?? "N/A";
 
@@ -804,13 +862,11 @@
         if (lastScore === null || criterion === null) {
           comparisonEl.textContent = "N/A";
         } else {
-          const comparisonText = `${lastScore} > ${criterion} = ${lastScore > criterion ? "REINFORCE" : "NO REINFORCEMENT"}`;
-          comparisonEl.textContent = comparisonText;
+          comparisonEl.textContent = `${lastScore} > ${criterion} = ${lastScore > criterion ? "REINFORCE" : "NO REINFORCEMENT"}`;
         }
 
         const lastOutcome = this.trialOutcomes.length ? this.trialOutcomes[this.trialOutcomes.length - 1] : null;
         const outcomeEl = document.getElementById("last-outcome");
-
         if (lastOutcome === true) {
           outcomeEl.textContent = "REINFORCE";
           outcomeEl.className = "status-good";
@@ -823,63 +879,31 @@
         }
 
         const responseCounts = this.getResponseCounts();
-        const countSummary = document.getElementById("response-count-summary");
         const keys = Object.keys(responseCounts);
-
-        if (!keys.length) {
-          countSummary.innerHTML = "No responses added yet.";
-        } else {
-          countSummary.innerHTML = keys
-            .map(name => `<span class="chip">${name}: ${responseCounts[name]}</span>`)
-            .join("");
-        }
+        document.getElementById("response-count-summary").innerHTML = keys.length
+          ? keys.map(name => `<span class="chip">${name}: ${responseCounts[name]}</span>`).join("")
+          : "No responses added yet.";
 
         const recentTrials = document.getElementById("recent-trials-summary");
         if (!this.completedTrials.length) {
           recentTrials.innerHTML = "No completed trials yet.";
         } else {
           const recent = this.completedTrials.slice(-5);
-          recentTrials.innerHTML = recent
-            .map((trial, idx) => {
-              const actualIndex = this.completedTrials.length - recent.length + idx + 1;
-              const score = this.variabilityScores[this.completedTrials.length - recent.length + idx];
-              return `<div style="margin-bottom:0.35rem;"><strong>Trial ${actualIndex}:</strong> ${trial} <span class="muted">| score: ${score}</span></div>`;
-            })
-            .join("");
+          recentTrials.innerHTML = recent.map((trial, idx) => {
+            const actualIndex = this.completedTrials.length - recent.length + idx + 1;
+            const score = this.variabilityScores[this.completedTrials.length - recent.length + idx];
+            return `<div style="margin-bottom:0.35rem;"><strong>Trial ${actualIndex}:</strong> ${trial} <span class="muted">| score: ${score}</span></div>`;
+          }).join("");
         }
-
-        const totalTrials = this.completedTrials.length;
-        const reinforcedTrials = this.getReinforcedTrialCount();
-        const zeroScoreCount = this.getZeroScoreCount();
-        const uniqueSequences = new Set(this.completedTrials).size;
-        const meanScore = this.variabilityScores.length
-          ? this.variabilityScores.reduce((a, b) => a + b, 0) / this.variabilityScores.length
-          : null;
-        const medianScore = this.computeMedian(this.variabilityScores);
-        const uValue = this.computeUValue();
-
-        document.getElementById("session-u-value").textContent =
-          uValue === null ? "N/A" : uValue.toFixed(3);
-
-        document.getElementById("session-total-trials").textContent = totalTrials;
-        document.getElementById("session-reinforced-trials").textContent = reinforcedTrials;
-        document.getElementById("session-percent-reinforced").textContent =
-          totalTrials ? `${((reinforcedTrials / totalTrials) * 100).toFixed(1)}%` : "N/A";
-
-        document.getElementById("session-zero-score-count").textContent = zeroScoreCount;
-        document.getElementById("session-percent-zero-score").textContent =
-          totalTrials ? `${((zeroScoreCount / totalTrials) * 100).toFixed(1)}%` : "N/A";
-
-        document.getElementById("session-unique-sequences").textContent = uniqueSequences;
-        document.getElementById("session-mean-score").textContent =
-          meanScore === null ? "N/A" : meanScore.toFixed(2);
-        document.getElementById("session-median-score").textContent =
-          medianScore === null ? "N/A" : medianScore;
       },
 
       renderTracker() {
         const el = document.getElementById("tracker");
-        el.textContent = this.trackerLog.length ? this.trackerLog.join("\n") : "No entries yet.";
+        if (!this.trackerRows.length) {
+          el.textContent = "No completed trials yet.";
+          return;
+        }
+        el.textContent = this.buildTrackerTSV(false);
       },
 
       renderAll() {
