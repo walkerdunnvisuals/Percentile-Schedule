@@ -161,10 +161,6 @@
       font-size: 0.9rem;
     }
 
-    .hidden {
-      display: none !important;
-    }
-
     #reinforce-overlay {
       position: fixed;
       inset: 0;
@@ -247,12 +243,6 @@
           <input id="score-sample-size" type="number" min="1" placeholder="e.g. 20" />
           <div class="field-note">How many recent completed-trial scores are used to calculate the percentile criterion.</div>
         </div>
-
-        <div>
-          <label for="max-score"><strong>Max Variability Score</strong></label>
-          <input id="max-score" type="number" min="1" placeholder="e.g. 50" />
-          <div class="field-note">Maximum score assigned when no recent exact sequence match is found within the scoring range.</div>
-        </div>
       </div>
 
       <div class="stat-box">
@@ -260,7 +250,6 @@
         <div style="margin-top:0.35rem;"><strong>Active Trial Length:</strong> <span id="active-trial-length">N/A</span></div>
         <div style="margin-top:0.35rem;"><strong>Active Percentile:</strong> <span id="active-percentile">N/A</span></div>
         <div style="margin-top:0.35rem;"><strong>Active Score Sample Size:</strong> <span id="active-score-sample-size">N/A</span></div>
-        <div style="margin-top:0.35rem;"><strong>Active Max Score:</strong> <span id="active-max-score">N/A</span></div>
         <div class="warning" id="settings-warning" style="margin-top:0.65rem;">
           Enter values above and click Apply Settings before running trials.
         </div>
@@ -389,8 +378,7 @@
       settings: {
         trialLength: null,
         percentile: null,
-        scoreSampleSize: null,
-        maxScore: null
+        scoreSampleSize: null
       },
 
       addResponseOption() {
@@ -427,29 +415,26 @@
         const trialLength = parseInt(document.getElementById("trial-length").value, 10);
         const percentile = parseInt(document.getElementById("percentile-value").value, 10);
         const scoreSampleSize = parseInt(document.getElementById("score-sample-size").value, 10);
-        const maxScore = parseInt(document.getElementById("max-score").value, 10);
 
         let valid = true;
 
         if (!Number.isInteger(trialLength) || trialLength < 1) valid = false;
         if (!Number.isInteger(percentile) || percentile < 1 || percentile > 99) valid = false;
         if (!Number.isInteger(scoreSampleSize) || scoreSampleSize < 1) valid = false;
-        if (!Number.isInteger(maxScore) || maxScore < 1) valid = false;
 
         if (!valid) {
-          alert("Please enter valid values for Trial Length, Percentile, Score Sample Size, and Max Variability Score.");
+          alert("Please enter valid values for Trial Length, Percentile, and Score Sample Size.");
           return;
         }
 
         this.settings.trialLength = trialLength;
         this.settings.percentile = percentile;
         this.settings.scoreSampleSize = scoreSampleSize;
-        this.settings.maxScore = maxScore;
 
         this.log(
           `[${formatTimestamp()}] Applied settings | ` +
           `trial length: ${trialLength} | percentile: ${percentile} | ` +
-          `score sample size: ${scoreSampleSize} | max score: ${maxScore}`
+          `score sample size: ${scoreSampleSize}`
         );
 
         this.renderAll();
@@ -460,8 +445,7 @@
         return (
           Number.isInteger(s.trialLength) &&
           Number.isInteger(s.percentile) &&
-          Number.isInteger(s.scoreSampleSize) &&
-          Number.isInteger(s.maxScore)
+          Number.isInteger(s.scoreSampleSize)
         );
       },
 
@@ -493,15 +477,15 @@
       },
 
       computeVariabilityScore(sequenceKey) {
-        const maxScore = this.settings.maxScore;
+        const currentTrialNumber = this.completedTrials.length + 1;
         const lastIndex = this.completedTrials.lastIndexOf(sequenceKey);
 
         if (lastIndex === -1) {
-          return maxScore;
+          return this.completedTrials.length;
         }
 
-        const intervening = (this.completedTrials.length - 1) - lastIndex;
-        return Math.min(intervening, maxScore);
+        const mostRecentMatchingTrialNumber = lastIndex + 1;
+        return currentTrialNumber - mostRecentMatchingTrialNumber - 1;
       },
 
       getRecentScoreSampleBeforeCurrent() {
@@ -659,7 +643,7 @@
         const uValue = this.computeUValue();
 
         const payload = {
-          version: 3,
+          version: 4,
           exportedAt: formatTimestamp(),
           settings: this.settings,
           responseOptions: this.responseOptions,
@@ -712,8 +696,7 @@
         this.settings = {
           trialLength: data.settings?.trialLength ?? null,
           percentile: data.settings?.percentile ?? null,
-          scoreSampleSize: data.settings?.scoreSampleSize ?? null,
-          maxScore: data.settings?.maxScore ?? null
+          scoreSampleSize: data.settings?.scoreSampleSize ?? null
         };
 
         this.responseOptions = Array.isArray(data.responseOptions) ? data.responseOptions : [];
@@ -726,7 +709,6 @@
         document.getElementById("trial-length").value = this.settings.trialLength ?? "";
         document.getElementById("percentile-value").value = this.settings.percentile ?? "";
         document.getElementById("score-sample-size").value = this.settings.scoreSampleSize ?? "";
-        document.getElementById("max-score").value = this.settings.maxScore ?? "";
 
         this.log(`[${formatTimestamp()}] Imported session data`);
         this.renderAll();
@@ -789,7 +771,6 @@
         document.getElementById("active-trial-length").textContent = this.settings.trialLength ?? "N/A";
         document.getElementById("active-percentile").textContent = this.settings.percentile ?? "N/A";
         document.getElementById("active-score-sample-size").textContent = this.settings.scoreSampleSize ?? "N/A";
-        document.getElementById("active-max-score").textContent = this.settings.maxScore ?? "N/A";
 
         const warning = document.getElementById("settings-warning");
         warning.textContent = this.settingsReady()
